@@ -11,8 +11,66 @@ class MyApp extends StatelessWidget {
       theme: new ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: new SendRequestPage(title: 'Send Request'),
+      home: new SendRequestPage(title: 'Send HTTP Request'),
     );
+  }
+}
+
+typedef SetUrl = Function(String url);
+
+class URLInput extends StatelessWidget {
+  URLInput(this.setUrl, {Key key}) : super(key: key);
+
+  final SetUrl setUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return new Container(
+      padding: const EdgeInsets.all(10.0),
+      child: new Row(
+        children: <Widget>[
+          new Expanded(child: new TextField(
+            onSubmitted: setUrl,
+          ))
+        ],
+      ),
+    );
+  }
+}
+
+class RequestSender extends StatelessWidget {
+  RequestSender(this.url, {Key key}) : super(key: key);
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return new Container(
+        padding: const EdgeInsets.all(10.0),
+        child: FutureBuilder(
+            future: url != null
+                ? http.get(url).then((response) => response.body)
+                : null,
+            builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+              switch (snapshot.connectionState) {
+                case ConnectionState.none:
+                  return new Text('Input a URL to start');
+                case ConnectionState.waiting:
+                  return new Center(child: new CircularProgressIndicator());
+                case ConnectionState.active:
+                  return new Text('');
+                case ConnectionState.done:
+                  if (snapshot.hasError) {
+                    return new Text(
+                      '${snapshot.error}',
+                      style: TextStyle(color: Colors.red),
+                    );
+                  } else {
+                    return new ListView(
+                        children: <Widget>[new Text(snapshot.data)]);
+                  }
+              }
+            }));
   }
 }
 
@@ -43,47 +101,8 @@ class _SendRequestState extends State<SendRequestPage> {
       body: new Center(
         child: new Column(
           children: <Widget>[
-            new Container(
-              padding: const EdgeInsets.all(10.0),
-              child: new Row(
-                children: <Widget>[
-                  new Expanded(child: new TextField(
-                    onSubmitted: (value) {
-                      _setUrl(value);
-                    },
-                  ))
-                ],
-              ),
-            ),
-            new Expanded(
-                child: new Container(
-                    padding: const EdgeInsets.all(10.0),
-                    child: _url != null
-                        ? FutureBuilder(
-                            future: http
-                                .get(_url)
-                                .then((response) => response.body),
-                            builder: (BuildContext context,
-                                AsyncSnapshot<String> snapshot) {
-                              switch (snapshot.connectionState) {
-                                case ConnectionState.waiting:
-                                  return new Center(
-                                      child: new CircularProgressIndicator());
-                                default:
-                                  if (snapshot.hasError) {
-                                    return new Text(
-                                      '${snapshot.error}',
-                                      style: TextStyle(color: Colors.red),
-                                    );
-                                  } else {
-                                    return new Text(
-                                      snapshot.data,
-                                      overflow: TextOverflow.clip,
-                                    );
-                                  }
-                              }
-                            })
-                        : new Text('Input a URL to start')))
+            new URLInput(_setUrl),
+            new Expanded(child: new RequestSender(_url))
           ],
         ),
       ),
